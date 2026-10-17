@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: video-call-app
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.3
+      - key: ALLOWED_ORIGIN
+        value: https://call.chluffy.net
