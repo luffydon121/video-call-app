@@ -33,12 +33,12 @@ Browser A ◄══ encrypted audio/video (WebRTC, DTLS-SRTP) ══► Browser 
 
 ## Deploy
 
-The frontend and signaling are one Node process, so one deployment covers both. GitHub Pages cannot run this Node.js/WebSocket server; use GitHub for source control and Render to run the app. The existing `chluffy.net` website can stay on GitHub Pages while the call app uses `call.chluffy.net`.
+The frontend and signaling are one Node process, so one deployment covers both. GitHub Pages cannot run this Node.js/WebSocket server; use GitHub for source control and Render to run the app. The steps below replace the existing root site at `chluffy.net` with this app.
 
 1. Push this repository to GitHub.
 2. In Render, create a Blueprint from the repository and apply the included `render.yaml`. It builds with `npm ci` and starts with `npm start`. Render provides HTTPS and WebSocket (`wss://`) support.
-3. Add `call.chluffy.net` as a custom domain for the Render web service. In the DNS manager for `chluffy.net`, add the CNAME record Render specifies for the `call` host. Do not change the existing root (`chluffy.net`) or `www` records; they serve the current website. Render provisions HTTPS after DNS is configured.
-4. The Blueprint restricts signaling connections to `https://call.chluffy.net`. Keep that origin in sync if you choose a different app domain.
+3. Add `chluffy.net` as a custom domain for the Render web service. In the DNS manager, replace the current GitHub Pages root records with the exact records Render specifies. This takes the existing root website offline; do not change DNS until the Render service is healthy.
+4. The Blueprint restricts signaling connections to `https://chluffy.net`. Keep that origin in sync if you choose a different app domain. The `www.chluffy.net` hostname is separate and will need its own Render custom-domain setup and DNS record if it should also serve this app.
 5. Render's free service may sleep when idle; check current plan terms. On wake-up, the first request may take longer.
 
 **VPS alternative:** run `npm start` under `pm2` or systemd, and put Caddy in front for automatic HTTPS:
