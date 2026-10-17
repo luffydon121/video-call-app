@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="referrer" content="no-referrer">
+<title>Hello – video calls</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24"><path fill="currentColor" d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15Zm6-3.5a1 1 0 1 0-2 0 4 4 0 0 1-8 0 1 1 0 1 0-2 0 6 6 0 0 0 5 5.9V20H9a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-2v-2.6a6 6 0 0 0 5-5.9Z"/></symbol>
+  <symbol id="i-mic-off" viewBox="0 0 24 24"><path fill="currentColor" d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15Zm6-3.5a1 1 0 1 0-2 0 4 4 0 0 1-8 0 1 1 0 1 0-2 0 6 6 0 0 0 5 5.9V20H9a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-2v-2.6a6 6 0 0 0 5-5.9Z"/><path stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M4 3 20 21"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><path fill="currentColor" d="M4.5 6A2.5 2.5 0 0 0 2 8.5v7A2.5 2.5 0 0 0 4.5 18h8a2.5 2.5 0 0 0 2.5-2.5v-7A2.5 2.5 0 0 0 12.5 6h-8Zm11.5 4.2v3.6l4.6 2.7c.7.4 1.4 0 1.4-.8V8.3c0-.8-.7-1.2-1.4-.8L16 10.2Z"/></symbol>
+  <symbol id="i-cam-off" viewBox="0 0 24 24"><path fill="currentColor" d="M4.5 6A2.5 2.5 0 0 0 2 8.5v7A2.5 2.5 0 0 0 4.5 18h8a2.5 2.5 0 0 0 2.5-2.5v-7A2.5 2.5 0 0 0 12.5 6h-8Zm11.5 4.2v3.6l4.6 2.7c.7.4 1.4 0 1.4-.8V8.3c0-.8-.7-1.2-1.4-.8L16 10.2Z"/><path stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M4 3 20 21"/></symbol>
+  <symbol id="i-flip" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Zm5.5 6.5a3 3 0 0 1 5-1.8M14.500 12.700V11M14.500 12.700H16M14.500 15.500a3 3 0 0 1-5 1.800M9.500 17.300V19M9.500 17.300H8"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 14a4 4 0 0 0 5.700 0l3-3a4 4 0 0 0-5.700-5.700l-1 1M14 10a4 4 0 0 0-5.700 0l-3 3a4 4 0 0 0 5.700 5.700l1-1"/></symbol>
+  <symbol id="i-end" viewBox="0 0 24 24"><path fill="currentColor" d="M12 9c-2.600 0-5 .6-7 1.800-.9.500-1.200 1.400-1 2.300l.4 1.700c.2.900 1.100 1.400 2 1.100l2.200-.7c.6-.2 1-.7 1-1.300v-1.100c1-.3 1.900-.4 2.400-.4s1.400.1 2.400.4v1.100c0 .6.400 1.100 1 1.300l2.200.7c.9.3 1.800-.2 2-1.100l.4-1.700c.2-.9-.1-1.800-1-2.300C17 9.600 14.600 9 12 9Z"/></symbol>
+</svg>
+
+<main id="home" class="screen" hidden>
+  <div class="card">
+    <h1>Hello</h1>
+    <p class="sub">Private video and voice calls for two. No accounts, no sign-up.</p>
+    <div class="stack">
+      <button id="btn-start" class="btn primary">Start Call</button>
+      <button id="btn-join" class="btn">Join Call</button>
+    </div>
+    <form id="join-form" class="stack" hidden>
+      <label for="join-input" class="sub">Paste an invitation link or room code</label>
+      <input id="join-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Link or code">
+      <button class="btn primary" type="submit">Join</button>
+    </form>
+    <p id="home-error" class="error" role="alert" hidden></p>
+  </div>
+</main>
+
+<main id="invite" class="screen" hidden>
+  <div class="card">
+    <h1>You’re invited</h1>
+    <p class="sub">Someone is waiting for you in a private call.</p>
+    <div class="stack"><button id="btn-accept" class="btn primary">Join Call</button></div>
+    <p id="invite-error" class="error" role="alert" hidden></p>
+    <a class="sub link" href="/">Back to start</a>
+  </div>
+</main>
+
+<section id="call" class="call" hidden>
+  <div class="stage">
+    <video id="remote" autoplay playsinline></video>
+    <div id="remote-off" class="placeholder" hidden><span>?</span></div>
+    <div id="waiting" class="overlay">
+      <div class="card">
+        <h2>Waiting for someone to join</h2>
+        <p class="sub">Share this link. Anyone with it can join, so send it only to the person you’re calling.</p>
+        <input id="invite-link" readonly aria-label="Invitation link">
+        <button id="btn-copy-main" class="btn primary">Copy link</button>
+      </div>
+    </div>
+    <div id="status" class="status" role="status" aria-live="polite">Connecting…</div>
+    <div class="pip" id="pip">
+      <video id="local" autoplay playsinline muted></video>
+      <div id="local-off" class="placeholder small" hidden><span>You</span></div>
+    </div>
+    <div id="call-error" class="toast" role="alert" hidden></div>
+  </div>
+  <nav class="controls" aria-label="Call controls">
+    <button id="btn-mic" class="round" aria-label="Mute microphone" aria-pressed="false"><svg><use href="#i-mic"/></svg></button>
+    <button id="btn-cam" class="round" aria-label="Turn camera off" aria-pressed="false"><svg><use href="#i-cam"/></svg></button>
+    <button id="btn-flip" class="round" aria-label="Switch camera" hidden><svg><use href="#i-flip"/></svg></button>
+    <button id="btn-copy" class="round" aria-label="Copy invitation link"><svg><use href="#i-link"/></svg></button>
+    <button id="btn-end" class="round danger" aria-label="End call"><svg><use href="#i-end"/></svg></button>
+  </nav>
+</section>
+
+<script src="/app.js"></script>
+</body>
+</html>
