@@ -315,7 +315,7 @@ function createPC() {
           setStatus('Connection failed', 'bad');
           toast(hasTurnServers()
             ? 'Could not connect, even through the TURN relay. Check the TURN provider credentials and network access.'
-            : 'This server has no TURN relay configured. Add TURN_URLS and TURN_SECRET in Render so calls can connect across restrictive networks.');
+            : 'This server returned no TURN relay. Configure Cloudflare TURN or TURN_URLS with TURN_SECRET in Render; restrictive networks may block calls without a relay.');
         }
         break;
     }
