@@ -75,6 +75,8 @@ TURN_SECRET=LONG_RANDOM_SECRET
 ```
 The server derives 1-hour credentials per request (coturn REST scheme). Or use a managed TURN provider and set `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` (note: those static values are returned to any client that fetches `/api/ice`, so prefer short-lived credentials from your provider if offered).
 
+For this Render deployment, add the TURN variables under **Render → video-call-app → Environment** and redeploy. Do not put TURN secrets in GitHub or in the browser code. Without these values the app only has STUN, which cannot relay media when direct peer-to-peer connectivity is blocked. When TURN is configured, the caller retries with relay-only ICE after a direct connection attempt fails.
+
 **Costs:** Node hosting may be free or a few dollars a month. A domain costs money. TLS certificates (Let's Encrypt) are free. STUN is free; TURN relays all media for affected calls, so it consumes bandwidth (video can be ~1–2.5 Mbps per direction) and is the part most likely to cost money.
 
 ## Security and privacy
