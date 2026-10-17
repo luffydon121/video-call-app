@@ -107,6 +107,8 @@ function validate(msg) {
       return msg.candidate === null || (typeof msg.candidate === 'object' && typeof msg.candidate.candidate === 'string');
     case 'state':
       return typeof msg.video === 'boolean' && typeof msg.audio === 'boolean';
+    case 'relay':
+      return true;
     default: return false;
   }
 }
