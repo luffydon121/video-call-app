@@ -1,13 +1,15 @@
-# Hello — two-person video calls (WebRTC)
+# Hello — private and random video calls (WebRTC)
 
-A polished, private one-to-one video and voice chat app built with vanilla HTML, CSS, and JavaScript on the frontend, plus a small Node.js signaling server. Start a room, copy the invite link, and join from another browser or device.
+A one-to-one video and voice chat app built with vanilla HTML, CSS, and JavaScript on the frontend, plus a small Node.js signaling server. Create a private invite room, or try the prototype random-match flow when enabled.
 
 Features include:
 - Private room-based calls for two participants
+- Optional random one-to-one matching with Next and Report controls
+- Adults-only confirmation and a conduct notice before random matching
 - WebRTC video + audio with graceful fallback for audio-only sessions
 - Camera toggle, microphone toggle, rear/front camera switching, and call-copy actions
 - Responsive layout with a cleaner “both-video” interface for local + remote streams
-- Production-ready signaling server and TURN/STUN support for stricter network environments
+- TURN/STUN support for stricter network environments
 
 ## Architecture
 
@@ -24,6 +26,8 @@ Browser A ◄══ encrypted audio/video (WebRTC, DTLS-SRTP) ══► Browser 
 - Empty rooms are deleted after 2 minutes (so a refresh can rejoin); rooms nobody joined expire after 30 minutes.
 - If a peer drops or refreshes, the other sees "The other person left", and the returning peer triggers a fresh negotiation. A failed connection triggers one ICE restart.
 - `/api/ice` hands out STUN/TURN config from environment variables. TURN credentials are never in the frontend source.
+- `/api/config` reports whether random matching is enabled. The in-memory match queue is limited to one server instance and is cleared on restart.
+- Random matching requires an explicit adult/conduct confirmation. The prototype's Report action ends the match and emits a short-lived server log entry; it does not persist reports or provide a moderation queue.
 
 ## Run locally
 
@@ -40,13 +44,14 @@ Browser A ◄══ encrypted audio/video (WebRTC, DTLS-SRTP) ══► Browser 
 
 ## Deploy
 
-The frontend and signaling are one Node process, so one deployment covers both. GitHub Pages cannot run this Node.js/WebSocket server; use GitHub for source control and Render to run the app. The steps below replace the existing root site at `chluffy.net` with this app.
+The frontend and signaling are one Node process, so one deployment covers both. GitHub Pages cannot run this Node.js/WebSocket server; use GitHub for source control and the existing Render web service to run the app.
 
-1. Push this repository to GitHub.
-2. In Render, create a Blueprint from the repository and apply the included `render.yaml`. It builds with `npm ci` and starts with `npm start`. Render provides HTTPS and WebSocket (`wss://`) support.
-3. Add `chluffy.net` as a custom domain for the Render web service. In the DNS manager, replace the GitHub Pages records with the values shown by Render for this service: set `@` to an A record for `216.24.57.1` (or use the `ANAME`/`ALIAS` option with Render's target `video-call-app-yyhi.onrender.com`), and set `www` to a CNAME for `video-call-app-yyhi.onrender.com`. Remove the old GitHub Pages A records for `@` and any AAAA records. This takes the existing root website offline; do not change DNS until the Render service is healthy. Leave mail-related MX/TXT records unchanged.
-4. The Blueprint restricts signaling connections to `https://chluffy.net`. Keep that origin in sync if you choose a different app domain. The `www.chluffy.net` hostname is separate and will need its own Render custom-domain setup and DNS record if it should also serve this app.
-5. Render's free service may sleep when idle; check current plan terms. On wake-up, the first request may take longer.
+1. Push a verified release to the GitHub branch connected to Render.
+2. Render builds with `npm ci`, starts with `npm start`, and checks `/healthz`. Render provides HTTPS and WebSocket (`wss://`) support.
+3. Keep the existing custom-domain and DNS records unchanged for this upgrade. The configured WebSocket origin must match the site's HTTPS origin exactly.
+4. Render's free service may sleep when idle; check current plan terms. On wake-up, the first request may take longer.
+
+Random matching is deliberately disabled in `render.yaml`. Keep it disabled on a public deployment until persistent report storage and a moderation review process are configured. Enabling the prototype flag only turns on in-memory matching and temporary report logs; it is not a production moderation system.
 
 **VPS alternative:** run `npm start` under `pm2` or systemd, and put Caddy in front for automatic HTTPS:
    ```
@@ -82,17 +87,24 @@ TURN_SECRET=LONG_RANDOM_SECRET
 ```
 The server derives 1-hour credentials per request (coturn REST scheme). Or use a managed TURN provider and set `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` (note: those static values are returned to any client that fetches `/api/ice`, so prefer short-lived credentials from your provider if offered).
 
-For this Render deployment, add the TURN variables under **Render → video-call-app → Environment** and redeploy. Do not put TURN secrets in GitHub or in the browser code. Without these values the app only has STUN, which cannot relay media when direct peer-to-peer connectivity is blocked. When TURN is configured, the caller retries with relay-only ICE after a direct connection attempt fails.
+### Cloudflare Realtime TURN
+
+1. In Cloudflare, create a TURN key under **Calls → TURN**. Create an API token scoped to the account with **Calls Write** permission.
+2. In **Render → video-call-app → Environment**, set `CLOUDFLARE_TURN_KEY_ID` to the TURN key ID and `CLOUDFLARE_API_TOKEN` to the API token. Keep both values out of GitHub and browser code.
+3. Redeploy the Render service. The server requests 24-hour TURN credentials from Cloudflare and keeps the long-lived API token server-side. It caches the generated ICE credentials for five minutes; the browser receives only the temporary credentials. Cloudflare currently charges $0.05 per real-time GB sent from Cloudflare to the TURN client when used without its Realtime SFU; direct peer-to-peer calls do not use TURN.
+
+Without TURN settings the app has only STUN, which cannot relay media when direct peer-to-peer connectivity is blocked. When TURN is configured, the caller retries with relay-only ICE after a direct connection attempt fails.
 
 **Costs:** Node hosting may be free or a few dollars a month. A domain costs money. TLS certificates (Let's Encrypt) are free. STUN is free; TURN relays all media for affected calls, so it consumes bandwidth (video can be ~1–2.5 Mbps per direction) and is the part most likely to cost money.
 
 ## Security and privacy
 
 - Media is end-to-end encrypted in transit by WebRTC (DTLS-SRTP). Signaling uses `wss://` under HTTPS. If a TURN relay is used it forwards encrypted packets but is not able to decrypt them.
-- No accounts or personal data; nothing is recorded or stored. Room state is in memory and removed after everyone leaves.
+- No accounts; call media is never recorded. Private room and matching state stays in memory and is cleared when the service restarts.
 - **Anyone with the link can join** if the room has a free slot. The link is the only secret, so share it privately; once two people are in, nobody else can enter. There is no waiting-room approval or password. Links appear in browser history and chat logs.
 - IDs are 96-bit random, so they can't practically be guessed. Room creation is rate limited (30/hour/IP; behind a proxy this uses `X-Forwarded-For`).
 - Both people's IP addresses are visible to each other's browser as ICE candidates (inherent to peer-to-peer WebRTC). Use TURN-only (`iceTransportPolicy: 'relay'`) if that matters to you.
+- Random matching is an opt-in prototype and is off in Render by default. Its age check is self-attestation, not identity or age verification. Reports are not durably saved or reviewed, and there is no blocklist. Do not enable random matching for public use until durable reporting, moderation, and abuse-response operations are in place.
 
 ## Troubleshooting
 
@@ -106,8 +118,8 @@ For this Render deployment, add the TURN variables under **Render → video-call
 | Echo/feedback in one-device tests | Mute one side or use headphones. |
 | Camera switch button missing | Only shown on touch devices with 2+ cameras. |
 
-## Testing status
+## Tests and release checks
 
-Verified in the authoring sandbox: JavaScript syntax check of server and client; HTTP API (room create/validate/404, `/api/ice` incl. HMAC TURN credentials, static serving, SPA route, path traversal blocked) run against the real `server.js` with a stubbed `ws`.
+Run `npm test` for HTTP health/config/room checks and WebSocket coverage of private-room signaling plus random-match consent, pairing, and report/next behavior. Run `node --check server.js` and `node --check public/app.js` for syntax checks.
 
-**Not verified:** the sandbox had no network, so `ws` could not be installed and no browsers were available. The WebSocket signaling, offer/answer/ICE exchange, two-way audio/video, mute/camera/hang-up, room capacity, disconnect handling, and cross-network behavior have **not** been run. Follow the local test steps above and check each before relying on it.
+The automated tests do not replace testing camera/microphone permissions, browser WebRTC negotiation, TURN relay behavior, or calls across different networks. Verify those manually in current desktop and mobile browsers before enabling random matching publicly.

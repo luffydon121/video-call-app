@@ -6,6 +6,7 @@ let roomId, ws, pc, iceServers;
 let audioTrack = null, videoTrack = null, audioSender = null, videoSender = null;
 let facing = 'user', micOn = false, camOn = false;
 let isOfferer = false, restarted = false, relayTried = false, leaving = false, retries = 0;
+let randomMode = false, randomMatchActive = false, randomConsent = false;
 let pending = [], remoteVideoOn = true, lastStatus = ['', ''], queue = Promise.resolve();
 
 /* ---------- UI helpers ---------- */
@@ -32,6 +33,9 @@ function updateControls() {
   $('local-off').hidden = camOn;
   $('local-off-pip').hidden = camOn;
   $('remote-off').hidden = remoteVideoOn;
+  $('btn-copy').hidden = randomMode;
+  $('btn-next').hidden = !randomMode;
+  $('btn-report').hidden = !randomMode || !randomMatchActive;
 }
 
 function describeError(e) {
@@ -73,6 +77,12 @@ $('join-form').onsubmit = async (e) => {
 };
 $('btn-accept').onclick = async () => {
   try { await checkRoom(roomId); enterCall(roomId); } catch (err) { showError($('invite-error'), err.message); }
+};
+$('random-consent').onchange = () => { $('btn-random').disabled = !$('random-consent').checked; };
+$('btn-random').onclick = () => {
+  if (!$('random-consent').checked) return;
+  randomConsent = true;
+  enterCall(null, true);
 };
 
 /* ---------- Media ---------- */
@@ -132,14 +142,30 @@ async function maybeShowFlip() {
 }
 
 /* ---------- Call lifecycle ---------- */
-async function enterCall(id) {
-  roomId = id; leaving = false;
-  history.replaceState(null, '', '/r/' + id);
+async function enterCall(id, random = false) {
+  roomId = id;
+  randomMode = random;
+  randomMatchActive = false;
+  leaving = false;
+  if (random) {
+    history.replaceState(null, '', '/');
+    $('private-wait-card').hidden = true;
+    $('random-wait-card').hidden = false;
+  } else {
+    history.replaceState(null, '', '/r/' + id);
+    $('private-wait-card').hidden = false;
+    $('random-wait-card').hidden = true;
+  }
   show('call');
-  $('invite-link').value = location.origin + '/r/' + id;
-  setStatus('Starting camera…');
-  try { await getMedia(); } catch (e) { return exitWith(e.message); }
-  updateControls(); maybeShowFlip();
+  $('invite-link').value = random ? '' : location.origin + '/r/' + id;
+  $('waiting').hidden = false;
+  setStatus(random ? 'Preparing random chat…' : 'Starting camera…');
+  if (!random) {
+    try { await getMedia(); } catch (e) { return exitWith(e.message); }
+    updateControls(); maybeShowFlip();
+  } else {
+    updateControls();
+  }
   try {
     const response = await fetch('/api/ice');
     if (!response.ok) throw new Error('Could not load ICE server configuration.');
@@ -149,20 +175,34 @@ async function enterCall(id) {
   } catch (e) {
     return exitWith(e.message || 'Could not load ICE server configuration.');
   }
-  setStatus('Connecting…');
+  setStatus(random ? 'Looking for someone…' : 'Connecting…');
   connectWs();
 }
 
 function connectWs() {
   const sock = ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
-  sock.onopen = () => { retries = 0; sock.send(JSON.stringify({ type: 'join', room: roomId })); };
+  let stableTimer;
+  sock.onopen = () => {
+    stableTimer = setTimeout(() => {
+      if (sock === ws && sock.readyState === WebSocket.OPEN) retries = 0;
+    }, 10000);
+    sock.send(JSON.stringify(randomMode
+      ? { type: 'find', adultConfirmed: randomConsent, conductAccepted: randomConsent }
+      : { type: 'join', room: roomId }));
+  };
   sock.onmessage = (e) => {
     let msg; try { msg = JSON.parse(e.data); } catch { return; }
     queue = queue.then(() => onSignal(msg)).catch((err) => console.error('signal error', err)); // handle messages strictly in order
   };
   sock.onclose = () => {
+    clearTimeout(stableTimer);
     if (leaving || sock !== ws) return;
     closePC(); $('waiting').hidden = false;
+    if (randomMode) {
+      randomMatchActive = false;
+      stopMedia();
+      updateControls();
+    }
     if (retries++ < 5) { setStatus('Reconnecting…', 'bad'); setTimeout(() => { if (!leaving) connectWs(); }, 1000 * retries); }
     else exitWith('Lost connection to the server.');
   };
@@ -174,14 +214,42 @@ const sendState = () => sendMsg({ type: 'state', video: camOn, audio: micOn });
 async function onSignal(msg) {
   switch (msg.type) {
     case 'joined':
-      if (msg.peers < 2) { $('waiting').hidden = false; setStatus('Waiting for someone to join'); }
-      else setStatus('Connecting…');
+      if (msg.random) {
+        randomMatchActive = msg.peers === 2;
+        updateControls();
+        if (msg.peers === 2) {
+          try {
+            await getMedia();
+            updateControls();
+            maybeShowFlip();
+            setStatus('Connecting…');
+          } catch (e) {
+            sendMsg({ type: 'next' });
+            toast(describeError(e));
+          }
+        }
+      } else if (msg.peers < 2) {
+        $('waiting').hidden = false;
+        setStatus('Waiting for someone to join');
+      } else setStatus('Connecting…');
+      break;
+    case 'searching':
+      randomMatchActive = false;
+      $('waiting').hidden = false;
+      updateControls();
+      setStatus('Looking for someone…');
+      break;
+    case 'reported':
+      toast('Report noted for this preview. Reports are not saved for review.');
       break;
     case 'error': exitWith(msg.message); break;
     case 'peer-joined': isOfferer = true; restarted = false; relayTried = false; createPC(); await makeOffer(false); break;
     case 'peer-left':
-      closePC(); restarted = false; relayTried = false; remoteVideoOn = true; $('call').classList.remove('connected'); updateControls();
-      $('waiting').hidden = false; setStatus('The other person left');
+      closePC(); restarted = false; relayTried = false; remoteVideoOn = true; randomMatchActive = false;
+      if (randomMode) stopMedia();
+      updateControls();
+      $('waiting').hidden = false;
+      setStatus(randomMode ? 'The other person left. Tap Next to continue.' : 'The other person left');
       break;
     case 'relay':
       if (pc && hasTurnServers()) pc.setConfiguration({ iceServers, iceTransportPolicy: 'relay' });
@@ -277,14 +345,39 @@ function cleanup() {
   leaving = true;
   if (ws) { ws.onclose = null; ws.close(); ws = null; }
   closePC();
-  for (const t of [audioTrack, videoTrack]) if (t) t.stop();
-  audioTrack = videoTrack = null;
+  stopMedia();
   $('local').srcObject = null;
   $('local-pip').srcObject = null;
+}
+function stopMedia() {
+  for (const t of [audioTrack, videoTrack]) if (t) t.stop();
+  audioTrack = videoTrack = null;
+  micOn = camOn = false;
 }
 function exitWith(message) { cleanup(); location.assign('/?e=' + encodeURIComponent(message || 'Call ended.')); }
 
 $('btn-end').onclick = () => { cleanup(); location.assign('/'); };
+$('btn-next').onclick = () => {
+  if (!randomMode || !ws || ws.readyState !== 1) return;
+  closePC();
+  randomMatchActive = false;
+  stopMedia();
+  updateControls();
+  $('waiting').hidden = false;
+  setStatus('Looking for someone…');
+  sendMsg({ type: 'next' });
+};
+$('btn-report').onclick = () => {
+  if (!randomMatchActive) return;
+  closePC();
+  randomMatchActive = false;
+  stopMedia();
+  updateControls();
+  $('waiting').hidden = false;
+  setStatus('Finding someone new…');
+  sendMsg({ type: 'report' });
+};
+$('btn-cancel-search').onclick = () => { cleanup(); location.assign('/'); };
 window.addEventListener('pagehide', () => { if (!leaving) cleanup(); });
 
 /* ---------- Copy link ---------- */
@@ -305,6 +398,11 @@ $('btn-copy').onclick = $('btn-copy-main').onclick = copyLink;
     return;
   }
   show('home');
+  fetch('/api/config').then(async (response) => {
+    if (!response.ok) throw new Error('Could not load app settings.');
+    const config = await response.json();
+    $('random-chat').hidden = !config.randomMatchEnabled;
+  }).catch(() => showError($('home-error'), 'Could not load app settings. Reload the page to try again.'));
   const e = new URLSearchParams(location.search).get('e');
   if (e) showError($('home-error'), e.slice(0, 200));
 })();

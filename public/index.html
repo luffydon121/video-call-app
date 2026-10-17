@@ -16,26 +16,54 @@
   <symbol id="i-cam-off" viewBox="0 0 24 24"><path fill="currentColor" d="M4.5 6A2.5 2.5 0 0 0 2 8.5v7A2.5 2.5 0 0 0 4.5 18h8a2.5 2.5 0 0 0 2.5-2.5v-7A2.5 2.5 0 0 0 12.5 6h-8Zm11.5 4.2v3.6l4.6 2.7c.7.4 1.4 0 1.4-.8V8.3c0-.8-.7-1.2-1.4-.8L16 10.2Z"/><path stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M4 3 20 21"/></symbol>
   <symbol id="i-flip" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Zm5.5 6.5a3 3 0 0 1 5-1.8M14.500 12.700V11M14.500 12.700H16M14.500 15.500a3 3 0 0 1-5 1.800M9.500 17.300V19M9.500 17.300H8"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 14a4 4 0 0 0 5.700 0l3-3a4 4 0 0 0-5.700-5.700l-1 1M14 10a4 4 0 0 0-5.700 0l-3 3a4 4 0 0 0 5.700 5.700l1-1"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-report" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 21V5m0 0c5-4 9 4 14 0v10c-5 4-9-4-14 0"/></symbol>
   <symbol id="i-end" viewBox="0 0 24 24"><path fill="currentColor" d="M12 9c-2.600 0-5 .6-7 1.800-.9.500-1.200 1.400-1 2.300l.4 1.700c.2.900 1.100 1.400 2 1.100l2.200-.7c.6-.2 1-.7 1-1.300v-1.100c1-.3 1.900-.4 2.400-.4s1.400.1 2.400.4v1.100c0 .6.400 1.100 1 1.300l2.200.7c.9.3 1.800-.2 2-1.100l.4-1.700c.2-.9-.1-1.800-1-2.300C17 9.600 14.600 9 12 9Z"/></symbol>
 </svg>
 
 <main id="home" class="screen" hidden>
+  <div class="backdrop"></div>
   <div class="card hero-card">
     <div class="brand-row">
       <span class="brand-badge">Hello</span>
     </div>
-    <h1>Private video calls, made easy.</h1>
-    <p class="sub">Start a secure one-to-one call in seconds. No accounts, no profiles, and no complicated setup.</p>
+    <p class="eyebrow">Private conversations</p>
+    <h1>Clear calls for the moments that matter.</h1>
+    <p class="sub">A beautifully simple way to connect face-to-face in a secure, two-person room. No accounts, no clutter, no friction.</p>
     <div class="feature-list" aria-label="Call features">
       <span>HD video</span>
-      <span>Live audio</span>
-      <span>Simple share link</span>
-      <span>Private rooms</span>
+      <span>Clear audio</span>
+      <span>Secure rooms</span>
+      <span>Fast invite link</span>
+    </div>
+    <div class="stats-row" aria-label="Highlights">
+      <div class="stat-pill">
+        <strong>2</strong>
+        <span>People</span>
+      </div>
+      <div class="stat-pill">
+        <strong>1</strong>
+        <span>Tap to start</span>
+      </div>
+      <div class="stat-pill">
+        <strong>∞</strong>
+        <span>Simple moments</span>
+      </div>
     </div>
     <div class="stack">
       <button id="btn-start" class="btn primary">Start Call</button>
       <button id="btn-join" class="btn">Join Call</button>
     </div>
+    <section id="random-chat" class="random-chat" hidden aria-labelledby="random-title">
+      <h2 id="random-title">Meet someone new</h2>
+      <p class="sub">Random one-to-one video chat. Your camera and microphone are shared only after you join.</p>
+      <p class="conduct-notice">Adults only (18+). Be respectful. Never share private information. You can skip or report a match at any time. Calls are not recorded.</p>
+      <label class="consent">
+        <input id="random-consent" type="checkbox">
+        <span>I’m 18 or older and agree to the conduct notice.</span>
+      </label>
+      <button id="btn-random" class="btn primary" disabled>Find someone</button>
+    </section>
     <form id="join-form" class="stack" hidden>
       <label for="join-input" class="sub">Paste an invitation link or room code</label>
       <input id="join-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Link or code">
@@ -69,10 +97,17 @@
     </div>
     <div id="waiting" class="overlay">
       <div class="card">
-        <h2>Waiting for someone to join</h2>
-        <p class="sub">Share this link. Anyone with it can join, so send it only to the person you’re calling.</p>
-        <input id="invite-link" readonly aria-label="Invitation link">
-        <button id="btn-copy-main" class="btn primary">Copy link</button>
+        <div id="private-wait-card" class="wait-card-content">
+          <h2>Waiting for someone to join</h2>
+          <p class="sub">Share this link. Anyone with it can join, so send it only to the person you’re calling.</p>
+          <input id="invite-link" readonly aria-label="Invitation link">
+          <button id="btn-copy-main" class="btn primary">Copy link</button>
+        </div>
+        <div id="random-wait-card" class="wait-card-content" hidden>
+          <h2>Finding someone to talk to</h2>
+          <p class="sub">Keep this page open. Your camera and microphone stay off until someone is connected.</p>
+          <button id="btn-cancel-search" class="btn">Cancel search</button>
+        </div>
       </div>
     </div>
     <div id="status" class="status" role="status" aria-live="polite">Connecting…</div>
@@ -87,6 +122,8 @@
     <button id="btn-cam" class="round" aria-label="Turn camera off" aria-pressed="false"><svg><use href="#i-cam"/></svg></button>
     <button id="btn-flip" class="round" aria-label="Switch camera" hidden><svg><use href="#i-flip"/></svg></button>
     <button id="btn-copy" class="round" aria-label="Copy invitation link"><svg><use href="#i-link"/></svg></button>
+    <button id="btn-report" class="round" aria-label="Report this match and find another" hidden><svg><use href="#i-report"/></svg></button>
+    <button id="btn-next" class="round" aria-label="Skip this match and find another" hidden><svg><use href="#i-next"/></svg></button>
     <button id="btn-end" class="round danger" aria-label="End call"><svg><use href="#i-end"/></svg></button>
   </nav>
 </section>

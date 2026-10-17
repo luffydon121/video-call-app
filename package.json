@@ -1,10 +1,17 @@
 {
   "name": "video-call-app",
-  "version": "1.0.0",
-  "description": "Minimal two-person WebRTC voice/video calls with a tiny signaling server",
+  "version": "2.0.0",
+  "description": "One-to-one WebRTC calls with private rooms and a gated random-match prototype",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=18" },
-  "dependencies": { "ws": "^8.18.0" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
   "license": "MIT"
 }
