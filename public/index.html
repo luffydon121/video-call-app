@@ -54,15 +54,16 @@
       <button id="btn-start" class="btn primary">Start Call</button>
       <button id="btn-join" class="btn">Join Call</button>
     </div>
-    <section id="random-chat" class="random-chat" hidden aria-labelledby="random-title">
-      <h2 id="random-title">Meet someone new</h2>
-      <p class="sub">Random one-to-one video chat. Your camera and microphone are shared only after you join.</p>
+    <section id="random-chat" class="random-chat" aria-labelledby="random-title">
+      <h2 id="random-title">Random Talk</h2>
+      <p class="sub">Start a one-to-one video chat with someone new. No invitation link needed. Your camera and microphone turn on only when you’re matched.</p>
       <p class="conduct-notice">Adults only (18+). Be respectful. Never share private information. You can skip or report a match at any time. Calls are not recorded.</p>
       <label class="consent">
         <input id="random-consent" type="checkbox">
         <span>I’m 18 or older and agree to the conduct notice.</span>
       </label>
-      <button id="btn-random" class="btn primary" disabled>Find someone</button>
+      <p id="random-availability" class="sub" role="status" hidden></p>
+      <button id="btn-random" class="btn primary" disabled>Start Random Talk</button>
     </section>
     <form id="join-form" class="stack" hidden>
       <label for="join-input" class="sub">Paste an invitation link or room code</label>
@@ -89,6 +90,7 @@
       <div class="video-panel remote-panel">
         <video id="remote" autoplay playsinline></video>
         <div id="remote-off" class="placeholder" hidden><span>?</span></div>
+        <button id="btn-enable-remote-audio" class="btn primary audio-prompt" hidden>Enable call audio</button>
       </div>
       <div class="video-panel local-panel">
         <video id="local" autoplay playsinline muted></video>

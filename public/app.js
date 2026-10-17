@@ -6,7 +6,7 @@ let roomId, ws, pc, iceServers;
 let audioTrack = null, videoTrack = null, audioSender = null, videoSender = null;
 let facing = 'user', micOn = false, camOn = false;
 let isOfferer = false, restarted = false, relayTried = false, leaving = false, retries = 0;
-let randomMode = false, randomMatchActive = false, randomConsent = false;
+let randomMode = false, randomMatchActive = false, randomConsent = false, randomAvailable = false;
 let pending = [], remoteVideoOn = true, lastStatus = ['', ''], queue = Promise.resolve();
 
 /* ---------- UI helpers ---------- */
@@ -78,9 +78,9 @@ $('join-form').onsubmit = async (e) => {
 $('btn-accept').onclick = async () => {
   try { await checkRoom(roomId); enterCall(roomId); } catch (err) { showError($('invite-error'), err.message); }
 };
-$('random-consent').onchange = () => { $('btn-random').disabled = !$('random-consent').checked; };
+$('random-consent').onchange = () => { $('btn-random').disabled = !randomAvailable || !$('random-consent').checked; };
 $('btn-random').onclick = () => {
-  if (!$('random-consent').checked) return;
+  if (!randomAvailable || !$('random-consent').checked) return;
   randomConsent = true;
   enterCall(null, true);
 };
@@ -132,6 +132,18 @@ $('btn-flip').onclick = async () => {
   facing = facing === 'user' ? 'environment' : 'user';
   try { videoTrack.stop(); await setVideoTrack(await newVideoTrack()); }
   catch (e) { facing = facing === 'user' ? 'environment' : 'user'; toast(describeError(e)); try { await setVideoTrack(await newVideoTrack()); } catch { await setVideoTrack(null); } }
+};
+$('btn-enable-remote-audio').onclick = async () => {
+  const remote = $('remote');
+  remote.muted = false;
+  try {
+    await remote.play();
+    $('btn-enable-remote-audio').hidden = true;
+  } catch (e) {
+    remote.muted = true;
+    toast('Tap “Enable call audio” to hear the other person.');
+    console.warn('Could not start remote audio playback:', e);
+  }
 };
 async function maybeShowFlip() {
   try {
@@ -282,13 +294,30 @@ function createPC() {
   const p = pc = new RTCPeerConnection({ iceServers });
   const remoteStream = new MediaStream();
   $('remote').srcObject = remoteStream;
-  audioSender = p.addTransceiver('audio', { direction: 'sendrecv' }).sender; // both directions always negotiated,
-  videoSender = p.addTransceiver('video', { direction: 'sendrecv' }).sender; // so camera/mic can start later without renegotiation
-  if (audioTrack) audioSender.replaceTrack(audioTrack);
-  if (videoTrack) videoSender.replaceTrack(videoTrack);
+  $('remote').muted = false;
+  $('btn-enable-remote-audio').hidden = true;
+  // Bind available media before creating the initial offer/answer; empty sendrecv
+  // transceivers still let either participant enable a missing device later.
+  audioSender = p.addTransceiver(audioTrack || 'audio', { direction: 'sendrecv' }).sender;
+  videoSender = p.addTransceiver(videoTrack || 'video', { direction: 'sendrecv' }).sender;
 
   p.onicecandidate = (e) => { if (p === pc && e.candidate) sendMsg({ type: 'candidate', candidate: e.candidate.toJSON() }); };
-  p.ontrack = (e) => { remoteStream.addTrack(e.track); $('remote').play().catch(() => {}); };
+  p.ontrack = (e) => {
+    remoteStream.addTrack(e.track);
+    $('remote').play().catch(async (error) => {
+      if (error.name !== 'NotAllowedError') {
+        console.warn('Could not play remote media:', error);
+        return;
+      }
+      $('remote').muted = true;
+      try {
+        await $('remote').play();
+        $('btn-enable-remote-audio').hidden = false;
+      } catch (mutedError) {
+        console.warn('Could not start remote video playback:', mutedError);
+      }
+    });
+  };
   p.onconnectionstatechange = async () => {
     if (p !== pc) return;
     switch (p.connectionState) {
@@ -338,6 +367,8 @@ function closePC() {
   if (pc) { pc.onicecandidate = pc.ontrack = pc.onconnectionstatechange = null; pc.close(); pc = null; }
   audioSender = videoSender = null; pending = [];
   $('remote').srcObject = null;
+  $('remote').muted = false;
+  $('btn-enable-remote-audio').hidden = true;
   $('call').classList.remove('connected');
 }
 
@@ -401,8 +432,16 @@ $('btn-copy').onclick = $('btn-copy-main').onclick = copyLink;
   fetch('/api/config').then(async (response) => {
     if (!response.ok) throw new Error('Could not load app settings.');
     const config = await response.json();
-    $('random-chat').hidden = !config.randomMatchEnabled;
-  }).catch(() => showError($('home-error'), 'Could not load app settings. Reload the page to try again.'));
+    randomAvailable = config.randomMatchEnabled === true;
+    $('random-availability').hidden = randomAvailable;
+    if (!randomAvailable) $('random-availability').textContent = 'Random Talk is temporarily unavailable on this server.';
+    $('btn-random').disabled = !randomAvailable || !$('random-consent').checked;
+  }).catch(() => {
+    $('random-availability').textContent = 'Could not check Random Talk availability. Reload the page to try again.';
+    $('random-availability').hidden = false;
+    $('btn-random').disabled = true;
+    showError($('home-error'), 'Could not load app settings. Reload the page to try again.');
+  });
   const e = new URLSearchParams(location.search).get('e');
   if (e) showError($('home-error'), e.slice(0, 200));
 })();

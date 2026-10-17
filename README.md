@@ -1,10 +1,10 @@
 # Hello — private and random video calls (WebRTC)
 
-A one-to-one video and voice chat app built with vanilla HTML, CSS, and JavaScript on the frontend, plus a small Node.js signaling server. Create a private invite room, or try the prototype random-match flow when enabled.
+A one-to-one video and voice chat app built with vanilla HTML, CSS, and JavaScript on the frontend, plus a small Node.js signaling server. Create a private invite room, or use Random Talk to match without sharing a link when the server enables it.
 
 Features include:
 - Private room-based calls for two participants
-- Optional random one-to-one matching with Next and Report controls
+- Optional, link-free Random Talk matching with Next and Report controls
 - Adults-only confirmation and a conduct notice before random matching
 - WebRTC video + audio with graceful fallback for audio-only sessions
 - Camera toggle, microphone toggle, rear/front camera switching, and call-copy actions
