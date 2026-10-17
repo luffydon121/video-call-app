@@ -24,6 +24,9 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=u
 /** rooms: id -> { peers:Set<ws>, timer } */
 const rooms = new Map();
 const createLog = new Map(); // ip -> timestamps (simple rate limit)
+let cloudflareTurnCache = null;
+let cloudflareTurnCacheExpiresAt = 0;
+let cloudflareTurnRequest = null;
 
 function armExpiry(id, ms) {
   const room = rooms.get(id);
@@ -39,9 +42,56 @@ function createRoom() {
   return id;
 }
 
-function iceServers() {
+async function cloudflareTurnServers() {
+  const keyId = process.env.CLOUDFLARE_TURN_KEY_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  if (!keyId || !apiToken) {
+    if (keyId || apiToken) throw new Error('Both Cloudflare TURN environment variables are required.');
+    return [];
+  }
+  if (cloudflareTurnCache && Date.now() < cloudflareTurnCacheExpiresAt) return cloudflareTurnCache;
+  if (cloudflareTurnRequest) return cloudflareTurnRequest;
+
+  cloudflareTurnRequest = (async () => {
+    const response = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(keyId)}/credentials/generate-ice-servers`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ttl: 86400 }),
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!response.ok) throw new Error(`Cloudflare TURN credential request failed (HTTP ${response.status}).`);
+    const result = await response.json();
+    if (!Array.isArray(result.iceServers)) throw new Error('Cloudflare TURN returned an invalid ICE server response.');
+
+    const servers = result.iceServers
+      .filter(server => {
+        const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+        return urls.some(url => typeof url === 'string' && /^(turn|turns):/i.test(url));
+      })
+      .map(server => ({
+        urls: (Array.isArray(server.urls) ? server.urls : [server.urls])
+          .filter(url => typeof url === 'string' && /^(turn|turns):/i.test(url) && !/:\s*53(?:\?|$)/.test(url)),
+        username: server.username,
+        credential: server.credential
+      }))
+      .filter(server => server.urls.length && typeof server.username === 'string' && typeof server.credential === 'string');
+    if (!servers.length) throw new Error('Cloudflare TURN returned no usable relay servers.');
+
+    cloudflareTurnCache = servers;
+    cloudflareTurnCacheExpiresAt = Date.now() + 5 * 60 * 1000;
+    return servers;
+  })();
+
+  try {
+    return await cloudflareTurnRequest;
+  } finally {
+    cloudflareTurnRequest = null;
+  }
+}
+
+async function iceServers() {
   const stun = (process.env.STUN_URLS || 'stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302').split(',').map(s => s.trim()).filter(Boolean);
-  const list = [{ urls: stun }];
+  const list = [{ urls: stun }, ...await cloudflareTurnServers()];
   const turn = (process.env.TURN_URLS || '').split(',').map(s => s.trim()).filter(Boolean);
   if (turn.length) {
     if (process.env.TURN_SECRET) { // coturn "use-auth-secret": short-lived credentials
@@ -58,7 +108,7 @@ function iceServers() {
 const send = (ws, msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
 const json = (res, code, body) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(body)); };
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
 
@@ -69,7 +119,14 @@ const server = http.createServer((req, res) => {
     createLog.set(ip, [...recent, now]);
     return json(res, 201, { id: createRoom() });
   }
-  if (req.method === 'GET' && url.pathname === '/api/ice') return json(res, 200, { iceServers: iceServers() });
+  if (req.method === 'GET' && url.pathname === '/api/ice') {
+    try {
+      return json(res, 200, { iceServers: await iceServers() });
+    } catch (error) {
+      console.error('Could not load ICE server configuration:', error.message);
+      return json(res, 503, { error: 'ICE server configuration is unavailable. Check the TURN provider settings.' });
+    }
+  }
 
   const m = url.pathname.match(/^\/api\/rooms\/([^/]+)$/);
   if (req.method === 'GET' && m) {
