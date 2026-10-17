@@ -37,7 +37,7 @@ The frontend and signaling are one Node process, so one deployment covers both. 
 
 1. Push this repository to GitHub.
 2. In Render, create a Blueprint from the repository and apply the included `render.yaml`. It builds with `npm ci` and starts with `npm start`. Render provides HTTPS and WebSocket (`wss://`) support.
-3. Add `chluffy.net` as a custom domain for the Render web service. In the DNS manager, replace the current GitHub Pages root records with the exact records Render specifies. This takes the existing root website offline; do not change DNS until the Render service is healthy.
+3. Add `chluffy.net` as a custom domain for the Render web service. In the DNS manager, replace the GitHub Pages records with the values shown by Render for this service: set `@` to an A record for `216.24.57.1` (or use the `ANAME`/`ALIAS` option with Render's target `video-call-app-yyhi.onrender.com`), and set `www` to a CNAME for `video-call-app-yyhi.onrender.com`. Remove the old GitHub Pages A records for `@` and any AAAA records. This takes the existing root website offline; do not change DNS until the Render service is healthy. Leave mail-related MX/TXT records unchanged.
 4. The Blueprint restricts signaling connections to `https://chluffy.net`. Keep that origin in sync if you choose a different app domain. The `www.chluffy.net` hostname is separate and will need its own Render custom-domain setup and DNS record if it should also serve this app.
 5. Render's free service may sleep when idle; check current plan terms. On wake-up, the first request may take longer.
 
