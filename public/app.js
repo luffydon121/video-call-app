@@ -5,7 +5,7 @@ const ID_RE = /^[A-Za-z0-9_-]{16}$/;
 let roomId, ws, pc, iceServers;
 let audioTrack = null, videoTrack = null, audioSender = null, videoSender = null;
 let facing = 'user', micOn = false, camOn = false;
-let isOfferer = false, restarted = false, leaving = false, retries = 0;
+let isOfferer = false, restarted = false, relayTried = false, leaving = false, retries = 0;
 let pending = [], remoteVideoOn = true, lastStatus = ['', ''], queue = Promise.resolve();
 
 /* ---------- UI helpers ---------- */
@@ -135,8 +135,15 @@ async function enterCall(id) {
   setStatus('Starting camera…');
   try { await getMedia(); } catch (e) { return exitWith(e.message); }
   updateControls(); maybeShowFlip();
-  try { iceServers = (await (await fetch('/api/ice')).json()).iceServers; }
-  catch { iceServers = [{ urls: 'stun:stun.l.google.com:19302' }]; }
+  try {
+    const response = await fetch('/api/ice');
+    if (!response.ok) throw new Error('Could not load ICE server configuration.');
+    const config = await response.json();
+    if (!Array.isArray(config.iceServers) || !config.iceServers.length) throw new Error('ICE server configuration is empty.');
+    iceServers = config.iceServers;
+  } catch (e) {
+    return exitWith(e.message || 'Could not load ICE server configuration.');
+  }
   setStatus('Connecting…');
   connectWs();
 }
@@ -166,10 +173,13 @@ async function onSignal(msg) {
       else setStatus('Connecting…');
       break;
     case 'error': exitWith(msg.message); break;
-    case 'peer-joined': isOfferer = true; restarted = false; createPC(); await makeOffer(false); break;
+    case 'peer-joined': isOfferer = true; restarted = false; relayTried = false; createPC(); await makeOffer(false); break;
     case 'peer-left':
-      closePC(); remoteVideoOn = true; updateControls();
+      closePC(); restarted = false; relayTried = false; remoteVideoOn = true; updateControls();
       $('waiting').hidden = false; setStatus('The other person left');
+      break;
+    case 'relay':
+      if (pc && hasTurnServers()) pc.setConfiguration({ iceServers, iceTransportPolicy: 'relay' });
       break;
     case 'offer':
       isOfferer = false;
@@ -212,11 +222,38 @@ function createPC() {
       case 'connected': $('waiting').hidden = true; toast(''); setStatus('Connected', 'ok'); sendState(); break;
       case 'disconnected': setStatus('Connection unstable…', 'bad'); break;
       case 'failed':
-        if (isOfferer && !restarted) { restarted = true; setStatus('Reconnecting…', 'bad'); try { await makeOffer(true); } catch (e) { console.error(e); } }
-        else { setStatus('Connection failed', 'bad'); toast('Could not connect directly. A TURN server may be required for these networks.'); }
+        if (isOfferer && !restarted) {
+          restarted = true;
+          setStatus('Reconnecting…', 'bad');
+          try { await makeOffer(true); } catch (e) { console.error(e); }
+        } else if (isOfferer && !relayTried && hasTurnServers()) {
+          relayTried = true;
+          setStatus('Trying TURN relay…', 'bad');
+          try {
+            p.setConfiguration({ iceServers, iceTransportPolicy: 'relay' });
+            sendMsg({ type: 'relay' });
+            await makeOffer(true);
+          } catch (e) {
+            console.error(e);
+            setStatus('Connection failed', 'bad');
+            toast('Could not start a TURN relay connection. Check the TURN provider credentials and network access.');
+          }
+        } else if (isOfferer) {
+          setStatus('Connection failed', 'bad');
+          toast(hasTurnServers()
+            ? 'Could not connect, even through the TURN relay. Check the TURN provider credentials and network access.'
+            : 'This server has no TURN relay configured. Add TURN_URLS and TURN_SECRET in Render so calls can connect across restrictive networks.');
+        }
         break;
     }
   };
+}
+
+function hasTurnServers() {
+  return Array.isArray(iceServers) && iceServers.some(server => {
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+    return urls.some(url => typeof url === 'string' && /^(turn|turns):/i.test(url));
+  });
 }
 
 async function makeOffer(iceRestart) {
