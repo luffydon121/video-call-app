@@ -1,6 +1,13 @@
-# Hello – two-person video calls (WebRTC)
+# Hello — two-person video calls (WebRTC)
 
-Start a call, send the link, talk. No accounts, no profiles, no recordings. Vanilla HTML/CSS/JS in the browser; a ~170-line Node server (`ws` is the only dependency) does signaling and serves the files.
+A polished, private one-to-one video and voice chat app built with vanilla HTML, CSS, and JavaScript on the frontend, plus a small Node.js signaling server. Start a room, copy the invite link, and join from another browser or device.
+
+Features include:
+- Private room-based calls for two participants
+- WebRTC video + audio with graceful fallback for audio-only sessions
+- Camera toggle, microphone toggle, rear/front camera switching, and call-copy actions
+- Responsive layout with a cleaner “both-video” interface for local + remote streams
+- Production-ready signaling server and TURN/STUN support for stricter network environments
 
 ## Architecture
 

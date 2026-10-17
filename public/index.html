@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
 <meta name="referrer" content="no-referrer">
-<title>Hello – video calls</title>
+<title>Hello — Private Video Calls</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -20,9 +20,18 @@
 </svg>
 
 <main id="home" class="screen" hidden>
-  <div class="card">
-    <h1>Hello</h1>
-    <p class="sub">Private video and voice calls for two. No accounts, no sign-up.</p>
+  <div class="card hero-card">
+    <div class="brand-row">
+      <span class="brand-badge">Hello</span>
+    </div>
+    <h1>Private video calls, made easy.</h1>
+    <p class="sub">Start a secure one-to-one call in seconds. No accounts, no profiles, and no complicated setup.</p>
+    <div class="feature-list" aria-label="Call features">
+      <span>HD video</span>
+      <span>Live audio</span>
+      <span>Simple share link</span>
+      <span>Private rooms</span>
+    </div>
     <div class="stack">
       <button id="btn-start" class="btn primary">Start Call</button>
       <button id="btn-join" class="btn">Join Call</button>
@@ -48,8 +57,16 @@
 
 <section id="call" class="call" hidden>
   <div class="stage">
-    <video id="remote" autoplay playsinline></video>
-    <div id="remote-off" class="placeholder" hidden><span>?</span></div>
+    <div class="video-grid" aria-live="polite">
+      <div class="video-panel remote-panel">
+        <video id="remote" autoplay playsinline></video>
+        <div id="remote-off" class="placeholder" hidden><span>?</span></div>
+      </div>
+      <div class="video-panel local-panel">
+        <video id="local" autoplay playsinline muted></video>
+        <div id="local-off" class="placeholder small" hidden><span>You</span></div>
+      </div>
+    </div>
     <div id="waiting" class="overlay">
       <div class="card">
         <h2>Waiting for someone to join</h2>
@@ -60,8 +77,8 @@
     </div>
     <div id="status" class="status" role="status" aria-live="polite">Connecting…</div>
     <div class="pip" id="pip">
-      <video id="local" autoplay playsinline muted></video>
-      <div id="local-off" class="placeholder small" hidden><span>You</span></div>
+      <video id="local-pip" autoplay playsinline muted></video>
+      <div id="local-off-pip" class="placeholder small" hidden><span>You</span></div>
     </div>
     <div id="call-error" class="toast" role="alert" hidden></div>
   </div>

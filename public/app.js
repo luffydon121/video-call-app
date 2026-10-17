@@ -23,9 +23,14 @@ function updateControls() {
   cam.setAttribute('aria-pressed', String(!camOn));
   cam.setAttribute('aria-label', camOn ? 'Turn camera off' : 'Turn camera on');
   setIcon(cam, camOn ? 'i-cam' : 'i-cam-off');
-  $('local').srcObject = videoTrack ? new MediaStream([videoTrack]) : null;
-  $('local').classList.toggle('mirror', facing === 'user');
+  const localStreams = [$('local'), $('local-pip')];
+  const stream = videoTrack ? new MediaStream([videoTrack]) : null;
+  for (const video of localStreams) {
+    video.srcObject = stream;
+    video.classList.toggle('mirror', facing === 'user');
+  }
   $('local-off').hidden = camOn;
+  $('local-off-pip').hidden = camOn;
   $('remote-off').hidden = remoteVideoOn;
 }
 
@@ -175,7 +180,7 @@ async function onSignal(msg) {
     case 'error': exitWith(msg.message); break;
     case 'peer-joined': isOfferer = true; restarted = false; relayTried = false; createPC(); await makeOffer(false); break;
     case 'peer-left':
-      closePC(); restarted = false; relayTried = false; remoteVideoOn = true; updateControls();
+      closePC(); restarted = false; relayTried = false; remoteVideoOn = true; $('call').classList.remove('connected'); updateControls();
       $('waiting').hidden = false; setStatus('The other person left');
       break;
     case 'relay':
@@ -219,7 +224,7 @@ function createPC() {
   p.onconnectionstatechange = async () => {
     if (p !== pc) return;
     switch (p.connectionState) {
-      case 'connected': $('waiting').hidden = true; toast(''); setStatus('Connected', 'ok'); sendState(); break;
+      case 'connected': $('waiting').hidden = true; $('call').classList.add('connected'); toast(''); setStatus('Connected', 'ok'); sendState(); break;
       case 'disconnected': setStatus('Connection unstable…', 'bad'); break;
       case 'failed':
         if (isOfferer && !restarted) {
@@ -265,6 +270,7 @@ function closePC() {
   if (pc) { pc.onicecandidate = pc.ontrack = pc.onconnectionstatechange = null; pc.close(); pc = null; }
   audioSender = videoSender = null; pending = [];
   $('remote').srcObject = null;
+  $('call').classList.remove('connected');
 }
 
 function cleanup() {
@@ -274,6 +280,7 @@ function cleanup() {
   for (const t of [audioTrack, videoTrack]) if (t) t.stop();
   audioTrack = videoTrack = null;
   $('local').srcObject = null;
+  $('local-pip').srcObject = null;
 }
 function exitWith(message) { cleanup(); location.assign('/?e=' + encodeURIComponent(message || 'Call ended.')); }
 

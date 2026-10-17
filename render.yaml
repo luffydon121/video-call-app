@@ -10,3 +10,5 @@ services:
         value: 22.23.3
       - key: ALLOWED_ORIGIN
         value: https://chluffy.net
+      - key: HOST_NAME
+        value: chluffy.net

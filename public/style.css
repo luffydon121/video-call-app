@@ -13,10 +13,15 @@ html, body { height: 100%; margin: 0; }
 body { background: var(--bg); color: var(--text); font: 17px/1.4 var(--font); -webkit-font-smoothing: antialiased; }
 
 .screen { min-height: 100%; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom)); }
-.card { width: min(400px, 100%); text-align: center; }
-h1 { font-size: clamp(2.4rem, 8vw, 3.2rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 8px; }
+.card { width: min(420px, 100%); text-align: center; }
+.hero-card { width: min(520px, 100%); padding: 30px 26px; border-radius: 28px; background: rgba(28,28,30,.7); border: 1px solid rgba(255,255,255,.08); box-shadow: 0 24px 80px rgba(0,0,0,.25); }
+.brand-row { display: flex; justify-content: center; margin-bottom: 12px; }
+.brand-badge { display: inline-flex; padding: 6px 12px; border-radius: 999px; background: rgba(10,132,255,.14); color: #8ec5ff; border: 1px solid rgba(10,132,255,.35); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+h1 { font-size: clamp(2.4rem, 7vw, 3.5rem); font-weight: 700; letter-spacing: -0.04em; margin: 0 0 10px; }
 h2 { font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; }
 .sub { color: var(--muted); font-size: 0.95rem; margin: 0 0 28px; }
+.feature-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 0 0 24px; }
+.feature-list span { padding: 7px 11px; border-radius: 999px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); color: var(--text); font-size: .74rem; }
 .stack { display: grid; gap: 12px; }
 .link { display: inline-block; margin: 20px 0 0; color: var(--accent); text-decoration: none; }
 .error { color: var(--danger); font-size: 0.95rem; margin: 16px 0 0; }
@@ -32,6 +37,9 @@ label.sub { margin: 8px 0 0; }
 
 .call { position: fixed; inset: 0; display: flex; flex-direction: column; background: #000; color: #f5f5f7; }
 .stage { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.video-grid { position: absolute; inset: 0; display: none; padding: 12px; gap: 12px; }
+.remote-panel, .local-panel { position: relative; min-height: 0; border-radius: 18px; overflow: hidden; background: #111; }
+.video-panel video { width: 100%; height: 100%; object-fit: cover; background: #000; }
 #remote { width: 100%; height: 100%; object-fit: cover; background: #000; }
 .placeholder { position: absolute; inset: 0; display: grid; place-items: center; background: #1c1c1e; }
 .placeholder span { display: grid; place-items: center; width: clamp(96px, 22vmin, 180px); aspect-ratio: 1; border-radius: 50%; background: #3a3a3c; font-size: clamp(2rem, 8vmin, 4rem); font-weight: 600; color: #d1d1d6; }
@@ -46,9 +54,19 @@ label.sub { margin: 8px 0 0; }
 .status[data-state="ok"]::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--ok); }
 .status[data-state="bad"] { color: var(--danger); }
 
-.pip { position: absolute; right: 16px; bottom: 16px; width: clamp(96px, 26vw, 220px); aspect-ratio: 3/4; border-radius: 16px; overflow: hidden; background: #1c1c1e; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+.pip { position: absolute; right: 16px; bottom: 16px; width: clamp(96px, 26vw, 220px); aspect-ratio: 3/4; border-radius: 16px; overflow: hidden; background: #1c1c1e; box-shadow: 0 6px 24px rgba(0,0,0,.5); z-index: 5; }
 .pip video { width: 100%; height: 100%; object-fit: cover; }
 .pip video.mirror { transform: scaleX(-1); }
+.call.connected .video-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(150px, 0.6fr); }
+.call.connected .remote-panel { min-height: 100%; }
+.call.connected .local-panel { min-height: 200px; align-self: end; }
+.call.connected .pip { display: none; }
+.call.connected #remote { display: block; }
+.call.connected #local { display: block; }
+.call:not(.connected) .video-grid { display: none; }
+.call:not(.connected) #remote { display: block; }
+.call:not(.connected) #local { display: none; }
+.call.connected .placeholder { background: rgba(28,28,30,.8); }
 
 .toast { position: absolute; left: 16px; right: 16px; bottom: 16px; margin: auto; max-width: 440px; padding: 12px 16px; border-radius: 14px; background: rgba(255,69,58,.95); color: #fff; font-size: .9rem; text-align: center; }
 
